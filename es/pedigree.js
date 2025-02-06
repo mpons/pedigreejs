@@ -45,7 +45,11 @@ export function build(options) {
 		background: "#FAFAFA",
 		node_background: '#fdfdfd',
 		validate: true,
-		DEBUG: false}, options );
+		DEBUG: false,
+		onDone: () => {},
+		onChange: () => {},
+		onEdit: () => {}
+	}, options );
 
 	if ( $( "#fullscreen" ).length === 0 ) {
 		// add undo, redo, fullscreen buttons and event listeners once

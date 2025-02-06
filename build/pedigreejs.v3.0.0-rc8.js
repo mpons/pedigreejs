@@ -364,8 +364,8 @@ var pedigreejs = (function (exports) {
 	  return text;
 	}
 	function buildTree(opts, person, root, partnerLinks, id) {
-	  if (typeof person.children === typeof undefined) person.children = getChildren(opts.dataset, person);
-	  if (typeof partnerLinks === typeof undefined) {
+	  if (typeof person.children === "undefined") person.children = getChildren(opts.dataset, person);
+	  if (typeof partnerLinks === "undefined") {
 	    partnerLinks = [];
 	    id = 1;
 	  }
@@ -452,7 +452,7 @@ var pedigreejs = (function (exports) {
 	  return id;
 	}
 	function isProband(obj) {
-	  return typeof $(obj).attr('proband') !== typeof undefined && $(obj).attr('proband') !== false;
+	  return typeof $(obj).attr('proband') !== "undefined" && $(obj).attr('proband') !== false;
 	}
 	function setProband(dataset, name, is_proband) {
 	  $.each(dataset, function (_i, p) {
@@ -972,9 +972,9 @@ var pedigreejs = (function (exports) {
 	function get_bounds(opts) {
 	  let ped = d3.select("#" + opts.targetDiv).select(".diagram");
 	  let xmin = Number.MAX_VALUE;
-	  let xmax = -1000000;
+	  let xmax = -1e6;
 	  let ymin = Number.MAX_VALUE;
-	  let ymax = -1000000;
+	  let ymax = -1e6;
 	  let sym = opts.symbol_size;
 	  ped.selectAll('g').each(function (d, _i) {
 	    if (d.x && d.data.name !== 'hidden_root' && !d.data.hidden) {
@@ -2748,6 +2748,7 @@ var pedigreejs = (function (exports) {
 	  }
 	  syncTwins(newdataset, person);
 	  opts.dataset = newdataset;
+	  opts.onChange(opts.dataset);
 	  $(document).trigger('rebuild', [opts]);
 	}
 	function update_diagnosis_age_widget() {
@@ -2845,8 +2846,9 @@ var pedigreejs = (function (exports) {
 	    } else {
 	      sex = d3.select(this).classed("fa-square") ? 'M' : d3.select(this).classed("fa-circle") ? 'F' : 'U';
 	    }
-	    if (add_person.type === 'addsibling') addsibling(newdataset, add_person.node.datum().data, sex, false, twin_type);else if (add_person.type === 'addchild') addchild(newdataset, add_person.node.datum().data, twin_type ? 'U' : sex, twin_type ? 2 : 1, twin_type);else return;
+	    if (add_person.type === 'addsibling') addsibling(opts, newdataset, add_person.node.datum().data, sex, false, twin_type);else if (add_person.type === 'addchild') addchild(opts, newdataset, add_person.node.datum().data, twin_type ? 'U' : sex, twin_type ? 2 : 1, twin_type);else return;
 	    opts.dataset = newdataset;
+	    opts.onChange(opts.dataset);
 	    $(document).trigger('rebuild', [opts]);
 	    d3.selectAll('.popup_selection').style("opacity", 0);
 	    add_person = {};
@@ -3043,6 +3045,7 @@ var pedigreejs = (function (exports) {
 	function onDone(opts, dataset) {
 	  // assign new dataset and rebuild pedigree
 	  opts.dataset = dataset;
+	  opts.onDone(dataset);
 	  $(document).trigger('rebuild', [opts]);
 	}
 
@@ -3101,6 +3104,9 @@ var pedigreejs = (function (exports) {
 
 	// if opt.edit is set true (rather than given a function) this is called to edit node attributes
 	function openEditDialog(opts, d) {
+	  if (opts.onEdit) {
+	    opts.onEdit(d.data.name);
+	  }
 	  $('#node_properties').dialog({
 	    autoOpen: false,
 	    title: d.data.display_name,
@@ -3159,13 +3165,13 @@ var pedigreejs = (function (exports) {
 	}
 
 	// add children to a given node
-	function addchild(dataset, node, sex, nchild, twin_type) {
+	function addchild(opts, dataset, node, sex, nchild, twin_type) {
 	  if (twin_type && $.inArray(twin_type, ["mztwin", "dztwin"]) === -1) return new Error("INVALID TWIN TYPE SET: " + twin_type);
-	  if (typeof nchild === typeof undefined) nchild = 1;
+	  if (typeof nchild === "undefined") nchild = 1;
 	  let children = getAllChildren(dataset, node);
 	  let ptr_name, idx;
 	  if (children.length === 0) {
-	    let partner = addsibling(dataset, node, node.sex === 'F' ? 'M' : 'F', node.sex === 'F');
+	    let partner = addsibling(opts, dataset, node, node.sex === 'F' ? 'M' : 'F', node.sex === 'F');
 	    partner.noparents = true;
 	    ptr_name = partner.name;
 	    idx = getIdxByName(dataset, node.name) + 1;
@@ -3192,7 +3198,7 @@ var pedigreejs = (function (exports) {
 	}
 
 	//
-	function addsibling(dataset, node, sex, add_lhs, twin_type) {
+	function addsibling(opts, dataset, node, sex, add_lhs, twin_type) {
 	  if (twin_type && $.inArray(twin_type, ["mztwin", "dztwin"]) === -1) return new Error("INVALID TWIN TYPE SET: " + twin_type);
 	  let newbie = {
 	    "name": makeid(4),
@@ -3213,6 +3219,7 @@ var pedigreejs = (function (exports) {
 	    if (idx > 0) idx--;
 	  } else idx++;
 	  dataset.splice(idx, 0, newbie);
+	  opts.onChange(dataset);
 	  return newbie;
 	}
 
@@ -3272,8 +3279,8 @@ var pedigreejs = (function (exports) {
 	    let midx;
 	    if (!add_lhs && node_father.data.id > node_mother.data.id || add_lhs && node_father.data.id < node_mother.data.id) midx = getIdxByName(dataset, node.father);else midx = getIdxByName(dataset, node.mother);
 	    let parent = dataset[midx];
-	    father = addsibling(dataset, parent, 'M', add_lhs);
-	    mother = addsibling(dataset, parent, 'F', add_lhs);
+	    father = addsibling(opts, dataset, parent, 'M', add_lhs);
+	    mother = addsibling(opts, dataset, parent, 'F', add_lhs);
 	    let faidx = getIdxByName(dataset, father.name);
 	    let moidx = getIdxByName(dataset, mother.name);
 	    if (faidx > moidx) {
@@ -3312,6 +3319,7 @@ var pedigreejs = (function (exports) {
 	      ptr_node.father = father.name;
 	    }
 	  }
+	  opts.onChange(dataset);
 	}
 
 	// add partner
@@ -3319,7 +3327,7 @@ var pedigreejs = (function (exports) {
 	  let root = roots[opts.targetDiv];
 	  let flat_tree = flatten(root);
 	  let tree_node = getNodeByName(flat_tree, name);
-	  let partner = addsibling(dataset, tree_node.data, tree_node.data.sex === 'F' ? 'M' : 'F', tree_node.data.sex === 'F');
+	  let partner = addsibling(opts, dataset, tree_node.data, tree_node.data.sex === 'F' ? 'M' : 'F', tree_node.data.sex === 'F');
 	  partner.noparents = true;
 	  let child = {
 	    "name": makeid(4),
@@ -3329,6 +3337,7 @@ var pedigreejs = (function (exports) {
 	  child.father = tree_node.data.sex === 'F' ? partner.name : tree_node.data.name;
 	  let idx = getIdxByName(dataset, tree_node.data.name) + 2;
 	  dataset.splice(idx, 0, child);
+	  opts.onChange(dataset);
 	}
 
 	// get adjacent nodes at the same depth
@@ -3439,6 +3448,7 @@ var pedigreejs = (function (exports) {
 	  if (onDone) {
 	    onDone(opts, dataset);
 	  }
+	  opts.onChange(dataset);
 	  return dataset;
 	}
 
@@ -3711,7 +3721,10 @@ var pedigreejs = (function (exports) {
 	    background: "#FAFAFA",
 	    node_background: '#fdfdfd',
 	    validate: true,
-	    DEBUG: false
+	    DEBUG: false,
+	    onDone: () => {},
+	    onChange: () => {},
+	    onEdit: () => {}
 	  }, options);
 	  if ($("#fullscreen").length === 0) {
 	    // add undo, redo, fullscreen buttons and event listeners once
@@ -4194,11 +4207,12 @@ var pedigreejs = (function (exports) {
 	    console.warn("No proband defined");
 	    return;
 	  }
-	  let newchild = addchild(newdataset, proband, sex, 1)[0];
+	  let newchild = addchild(opts, newdataset, proband, sex, 1)[0];
 	  newchild.age = age;
 	  newchild.yob = yob;
 	  if (breastfeeding !== undefined) newchild.breastfeeding = breastfeeding;
 	  opts.dataset = newdataset;
+	  opts.onChange(opts.dataset);
 	  rebuild(opts);
 	  return newchild.name;
 	}
@@ -4208,6 +4222,7 @@ var pedigreejs = (function (exports) {
 	  function onDone(opts, dataset) {
 	    // assign new dataset and rebuild pedigree
 	    opts.dataset = dataset;
+	    opts.onDone(dataset);
 	    rebuild(opts);
 	  }
 	  let newdataset = copy_dataset(current(opts));

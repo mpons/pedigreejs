@@ -79,12 +79,13 @@ export function proband_add_child(opts, sex, age, yob, breastfeeding){
 		console.warn("No proband defined");
 		return;
 	}
-	let newchild = addchild(newdataset, proband, sex, 1)[0];
+	let newchild = addchild(opts, newdataset, proband, sex, 1)[0];
 	newchild.age = age;
 	newchild.yob = yob;
 	if(breastfeeding !== undefined)
 		newchild.breastfeeding = breastfeeding;
 	opts.dataset = newdataset;
+	opts.onChange(opts.dataset)
 	rebuild(opts);
 	return newchild.name;
 }
@@ -94,6 +95,7 @@ export function delete_node_by_name(opts, name){
 	function onDone(opts, dataset) {
 		// assign new dataset and rebuild pedigree
 		opts.dataset = dataset;
+		opts.onDone(dataset)
 		rebuild(opts);
 	}
 	let newdataset = copy_dataset(pedcache.current(opts));

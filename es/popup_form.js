@@ -254,6 +254,7 @@ export function save(opts) {
 
 	syncTwins(newdataset, person);
 	opts.dataset = newdataset;
+	opts.onChange(opts.dataset)
 	$(document).trigger('rebuild', [opts]);
 }
 
