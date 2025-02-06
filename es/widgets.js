@@ -102,12 +102,13 @@ export function addWidgets(opts, node) {
 		}
 
 		if(add_person.type === 'addsibling')
-			addsibling(newdataset, add_person.node.datum().data, sex, false, twin_type);
+			addsibling(opts, newdataset, add_person.node.datum().data, sex, false, twin_type);
 		else if(add_person.type === 'addchild')
-			addchild(newdataset, add_person.node.datum().data, (twin_type ? 'U' : sex), (twin_type ? 2 : 1), twin_type);
+			addchild(opts, newdataset, add_person.node.datum().data, (twin_type ? 'U' : sex), (twin_type ? 2 : 1), twin_type);
 		else
 			return;
 		opts.dataset = newdataset;
+		opts.onChange(opts.dataset);
 		$(document).trigger('rebuild', [opts]);
 		d3.selectAll('.popup_selection').style("opacity", 0);
 		add_person = {};
@@ -324,6 +325,8 @@ export function addWidgets(opts, node) {
 function onDone(opts, dataset) {
 	// assign new dataset and rebuild pedigree
 	opts.dataset = dataset;
+	opts.onDone(dataset);
+
 	$(document).trigger('rebuild', [opts]);
 }
 
@@ -400,6 +403,10 @@ function capitaliseFirstLetter(string) {
 
 // if opt.edit is set true (rather than given a function) this is called to edit node attributes
 function openEditDialog(opts, d) {
+	if (opts.onEdit) {
+		opts.onEdit(d.data.name)
+	}
+
 	$('#node_properties').dialog({
 	    autoOpen: false,
 	    title: d.data.display_name,
@@ -494,7 +501,7 @@ function openEditDialog(opts, d) {
 
 
 // add children to a given node
-export function addchild(dataset, node, sex, nchild, twin_type) {
+export function addchild(opts, dataset, node, sex, nchild, twin_type) {
 	if(twin_type && $.inArray(twin_type, [ "mztwin", "dztwin" ] ) === -1)
 		return new Error("INVALID TWIN TYPE SET: "+twin_type);
 
@@ -503,7 +510,7 @@ export function addchild(dataset, node, sex, nchild, twin_type) {
 	let children = utils.getAllChildren(dataset, node);
 	let ptr_name, idx;
 	if (children.length === 0) {
-		let partner = addsibling(dataset, node, node.sex === 'F' ? 'M': 'F', node.sex === 'F');
+		let partner = addsibling(opts, dataset, node, node.sex === 'F' ? 'M': 'F', node.sex === 'F');
 		partner.noparents = true;
 		ptr_name = partner.name;
 		idx = utils.getIdxByName(dataset, node.name)+1;
@@ -531,7 +538,7 @@ export function addchild(dataset, node, sex, nchild, twin_type) {
 }
 
 //
-export function addsibling(dataset, node, sex, add_lhs, twin_type) {
+export function addsibling(opts, dataset, node, sex, add_lhs, twin_type) {
 	if(twin_type && $.inArray(twin_type, [ "mztwin", "dztwin" ] ) === -1)
 		return new Error("INVALID TWIN TYPE SET: "+twin_type);
 
@@ -553,6 +560,7 @@ export function addsibling(dataset, node, sex, add_lhs, twin_type) {
 	} else
 		idx++;
 	dataset.splice(idx, 0, newbie);
+	opts.onChange(dataset)
 	return newbie;
 }
 
@@ -615,8 +623,8 @@ export function addparents(opts, dataset, name) {
 			midx = utils.getIdxByName(dataset, node.mother);
 
 		let parent = dataset[midx];
-		father = addsibling(dataset, parent, 'M', add_lhs);
-		mother = addsibling(dataset, parent, 'F', add_lhs);
+		father = addsibling(opts, dataset, parent, 'M', add_lhs);
+		mother = addsibling(opts, dataset, parent, 'F', add_lhs);
 
 		let faidx = utils.getIdxByName(dataset, father.name);
 		let moidx = utils.getIdxByName(dataset, mother.name);
@@ -659,6 +667,7 @@ export function addparents(opts, dataset, name) {
 			ptr_node.father = father.name;
 		}
 	}
+	opts.onChange(dataset)
 }
 
 // add partner
@@ -667,7 +676,7 @@ export function addpartner(opts, dataset, name) {
 	let flat_tree = utils.flatten(root);
 	let tree_node = utils.getNodeByName(flat_tree, name);
 
-	let partner = addsibling(dataset, tree_node.data, tree_node.data.sex === 'F' ? 'M' : 'F', tree_node.data.sex === 'F');
+	let partner = addsibling(opts, dataset, tree_node.data, tree_node.data.sex === 'F' ? 'M' : 'F', tree_node.data.sex === 'F');
 	partner.noparents = true;
 
 	let child = {"name": utils.makeid(4), "sex": "M"};
@@ -676,6 +685,7 @@ export function addpartner(opts, dataset, name) {
 
 	let idx = utils.getIdxByName(dataset, tree_node.data.name)+2;
 	dataset.splice(idx, 0, child);
+	opts.onChange(dataset)
 }
 
 // get adjacent nodes at the same depth
@@ -793,6 +803,8 @@ export function delete_node_dataset(dataset, node, opts, onDone) {
 	if(onDone) {
 		onDone(opts, dataset);
 	}
+
+	opts.onChange(dataset)
 	return dataset;
 }
 
