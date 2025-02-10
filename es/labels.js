@@ -47,9 +47,14 @@ export function addLabels(opts, node) {
 				function(d) { return get_text(d, arr); }, 'indi_details', arr);
 		}
 	}
+
+	const arr = ['notes']
+	addLabel(opts, node, -opts.symbol_size,
+		function(d) { return ypos(d, arr, font_size); },
+		function(d) { return get_text(d, arr, -opts.symbol_size); }, 'indi_details', arr);
 }
 
-function get_text(d, arr) {
+function get_text(d, arr, xPos = null) {
 	let txt = "";
 	for(let l=0; l<arr.length; l++) {
 		let this_label = arr[l];
@@ -74,7 +79,10 @@ function get_text(d, arr) {
 				let r = d.data[this_label].toUpperCase();
 				txt += this_label.replace('_bc_pathology', '').toUpperCase()
 				txt += (r === 'P' ? '+ ' : (r === 'N' ? '- ' : ' '));
-			} else {
+			} else if(this_label === 'notes') {
+				txt = breakLongLabelTexts(d.data[this_label], xPos);
+			}
+			else {
 			  txt += d.data[this_label];
 			}
 		}
@@ -95,6 +103,36 @@ function node_has_label(d, labels) {
 	return false;
 }
 
+/**
+ *
+ * @returns {*}
+ * @param ftext string
+ * @param xPos string
+ */
+function breakLongLabelTexts(ftext, xPos) {
+	const wordsPerLine = 4
+	let result = ''
+
+	const parts = ftext.split(' ')
+	if (parts.length < wordsPerLine) {
+		return '<tspan x="'+xPos+'" dy="1.2em">'+ftext+'</tspan>'
+	}
+	// 4 words per line
+	let i = 0
+	while( i < parts.length - 4 ) {
+		const text = parts.slice(i, i+wordsPerLine).join(' ')
+		result += '<tspan x="'+xPos+'" dy="1.2em">'+text+'</tspan>'
+		i += wordsPerLine
+	}
+
+	if ( i < parts.length ) {
+		const text = parts.slice(i, parts.length - 1).join(' ')
+		result += '<tspan x="'+xPos+'" dy="1.2em">'+text+'</tspan>'
+	}
+
+	return result
+}
+
 // add label to node
 function addLabel(opts, node, fx, fy, ftext, class_label, labels) {
 	node.filter(function (d) {
@@ -106,7 +144,7 @@ function addLabel(opts, node, fx, fy, ftext, class_label, labels) {
 	.attr("font-family", opts.font_family)
 	.attr("font-size", opts.font_size)
 	.attr("font-weight", opts.font_weight)
-	.text(ftext);
+	.html(ftext);
 }
 
 // get height in pixels
