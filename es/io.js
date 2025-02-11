@@ -533,7 +533,7 @@ export function readBoadiceaV4(boadicea_lines, version) {
 	}
 }
 
-function process_ped(ped) {
+export function process_ped(ped) {
 	// find the level of individuals in the pedigree
 	for(let j=0;j<2;j++) {
 		for(let i=0;i<ped.length;i++) {

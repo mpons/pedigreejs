@@ -3511,6 +3511,12 @@ var pedigreejs = (function (exports) {
 	      }, 'indi_details', arr);
 	    }
 	  }
+	  const arr = ['notes'];
+	  addLabel(opts, node, -opts.symbol_size, function (d) {
+	    return ypos(d, arr, font_size);
+	  }, function () {
+	    return 'note test';
+	  }, 'indi_details', arr);
 	}
 	function get_text(d, arr) {
 	  let txt = "";
