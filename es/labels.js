@@ -117,16 +117,16 @@ function breakLongLabelTexts(ftext, xPos) {
 	if (parts.length < wordsPerLine) {
 		return '<tspan x="'+xPos+'" dy="1.2em">'+ftext+'</tspan>'
 	}
-	// 4 words per line
+
 	let i = 0
-	while( i < parts.length - 4 ) {
+	while( i < parts.length - wordsPerLine ) {
 		const text = parts.slice(i, i+wordsPerLine).join(' ')
 		result += '<tspan x="'+xPos+'" dy="1.2em">'+text+'</tspan>'
 		i += wordsPerLine
 	}
 
 	if ( i < parts.length ) {
-		const text = parts.slice(i, parts.length - 1).join(' ')
+		const text = parts.slice(i, parts.length).join(' ')
 		result += '<tspan x="'+xPos+'" dy="1.2em">'+text+'</tspan>'
 	}
 
