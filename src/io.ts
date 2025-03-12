@@ -3,12 +3,13 @@
 /* SPDX-FileCopyrightText: 2023 University of Cambridge
 /* SPDX-License-Identifier: GPL-3.0-or-later
 **/
-
+// @ts-nocheck
 // pedigree I/O
 import * as utils from './utils.js';
 import * as pedcache from './pedcache.js';
 import {readCanRisk, cancers, genetic_test1, pathology_tests} from './canrisk_file.js';
 import {get_bounds} from './zoom.js';
+import {PedigreeDatasetNode} from "@/models/PedigreeDatasetNode.ts";
 
 
 export function addIO(opts) {
@@ -307,7 +308,7 @@ function canrisk_validation(opts) {
 }
 
 /** Read and load pedigree data string */
-export function load_data(d, opts) {
+export function load_data(d, opts: Options) {
 	if(opts.DEBUG) console.log(d);
 	let risk_factors;
 	try {
@@ -336,7 +337,7 @@ export function load_data(d, opts) {
 				opts.dataset = readLinkage(d);
 			}
 		}
-		utils.validate_pedigree(opts);
+		utils.validatePedigree(opts);
 	} catch(err1) {
 		console.error(err1, d);
 		utils.messages("File Error", ( err1.message ? err1.message : err1));
@@ -631,21 +632,22 @@ function update_parents_level(idx, level, dataset) {
 	}
 }
 
+
 // for a pedigree fix the levels of children nodes to be consistent with parent
 function fix_n_balance_levels(ped) {
 	let updated = false;
 	let l = ped.length;
 
 	for(let i=0;i<l;i++) {
-		let children = utils.getChildren(ped, ped[i]);
+		let children = utils.getChildrenFromFemale(ped, ped[i]);
 		let prt_lvl = ped[i].level;
 		for(let j=0;j<children.length;j++){
 			if(prt_lvl - children[j].level > 1) {
 				children[j].level = prt_lvl-1;
-				let ptrs = utils.get_partners(ped, children[j]);
+				let partnersNames = utils.getPartnersNames(ped, children[j]);
 
-				for(let k=0;k<ptrs.length;k++){
-					let p = utils.getNodeByName(ped, ptrs[k])
+				for(let k=0;k<partnersNames.length;k++){
+					let p = utils.getNodeByName(ped, partnersNames[k])
 					p.level = prt_lvl-1;
 
 					let m = utils.getNodeByName(ped, p.mother);

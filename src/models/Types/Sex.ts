@@ -1,0 +1,1 @@
+export type Sex = 'F' | 'M' | 'U'

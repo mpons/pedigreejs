@@ -4,6 +4,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later
 **/
 
+// @ts-nocheck
 // pedigree form
 import {syncTwins} from './twins.js';
 import {copy_dataset, getNodeByName} from './utils.js';

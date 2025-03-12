@@ -3,15 +3,18 @@
 	"version": "v3.0.0-rc8",
 	"description": "pedigreejs is a javascript module for graphically building pedigree data in the web-browser.",
 	"browser": "es/pedigree.js",
+	"type": "module",
 	"files": [
-		"es/*.js"
+		"src/*.js"
 	],
 	"directories": {
 		"doc": "docs"
 	},
 	"scripts": {
-		"build": "rollup -c --bundleConfigAsCjs",
-		"build-es": "rollup es/index.js --file build/pedigreejs.es.v3.0.0-rc8.js --format es --plugin 'rollup-plugin-postcss={extract: true, minimize: true}'",
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"build-es": "rollup src/index.js --file build/pedigreejs.es.v3.0.0-rc8.js --format src --plugin 'rollup-plugin-postcss={extract: true, minimize: true}'",
 		"server": "python3 -m http.server 8001",
 		"browserlist": "npx browserslist@latest --update-db",
 		"test": "jasmine server",
@@ -40,18 +43,26 @@
 		"@babel/core": "^7.26.0",
 		"@babel/eslint-parser": "^7.25.9",
 		"@babel/preset-env": "^7.26.0",
+		"@eslint/js": "^9.15.0",
 		"@rollup/plugin-babel": "^6.0.4",
 		"@rollup/plugin-terser": "^0.4.4",
+		"@types/node": "^22.10.2",
 		"jasmine-browser-runner": "^2.5.0",
 		"jasmine-core": "^5.5.0",
 		"npm-check-updates": "^17.1.11",
 		"rollup": "^4.28.1",
 		"rollup-plugin-eslint": "^7.0.0",
 		"rollup-plugin-postcss": "^4.0.2",
-		"rollup-plugin-sourcemaps": "^0.6.3"
+		"rollup-plugin-sourcemaps": "^0.6.3",
+		"typescript": "~5.6.2",
+		"typescript-eslint": "^8.15.0",
+		"vite": "^6.0.1",
+		"vite-plugin-commonjs": "^0.10.4"
 	},
 	"dependencies": {
 		"@rollup/pluginutils": "^5.1.3",
+		"@types/d3": "^7.4.3",
+		"d3": "^7.9.0",
 		"postcss": "^8.4.49"
 	}
 }

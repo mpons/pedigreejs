@@ -5,19 +5,21 @@
 /* SPDX-FileCopyrightText: 2023 University of Cambridge
 /* SPDX-License-Identifier: GPL-3.0-or-later
 **/
-
 import {copy_dataset, getNodeByName, getProbandIndex} from './utils.js';
 import {rebuild} from './pedigree.js';
 import {delete_node_dataset} from './widgets.js';
 import {addchild} from './widgets.js';
 import {syncTwins} from './twins.js';
 import * as pedcache from './pedcache.js';
+import {Options} from "@/models/Options.ts";
+import {Sex} from "@/models/Types/Sex.ts";
+import {PedigreeDatasetNode} from "@/models/PedigreeDatasetNode.ts";
 
 
 // Set or remove node attributes.
 // If a value is not provided the attribute is removed.
 // 'key' can be a list of keys or a single key.
-export function node_attr(opts, name, keys, value){
+export function node_attr(opts: Options, name: string, keys: string[], value: string){
 	let newdataset = copy_dataset(pedcache.current(opts));
 	let node = getNodeByName(newdataset, name);
 	if(!node){
@@ -66,15 +68,27 @@ export function node_attr(opts, name, keys, value){
 // Set or remove proband attributes.
 // If a value is not provided the attribute is removed from the proband.
 // 'key' can be a list of keys or a single key.
-export function proband_attr(opts, keys, value){
-	let proband = opts.dataset[ getProbandIndex(opts.dataset) ];
+export function proband_attr(opts: Options, keys: string[], value: string){
+	if (!opts.dataset) {
+		return;
+	}
+
+	const probandIndex = getProbandIndex(opts.dataset)
+	if (!probandIndex) {
+		return
+	}
+	let proband = opts.dataset[ probandIndex ];
 	node_attr(opts, proband.name, keys, value);
 }
 
 // add a child to the proband; giveb sex, age, yob and breastfeeding months (optional)
-export function proband_add_child(opts, sex, age, yob, breastfeeding){
+export function proband_add_child(opts: Options, sex: Sex, age: number, yob: number, breastfeeding: number){
 	let newdataset = copy_dataset(pedcache.current(opts));
-	let proband = newdataset[ getProbandIndex(newdataset) ];
+	const probandIndex = getProbandIndex(newdataset)
+	if (!probandIndex) {
+		return
+	}
+	let proband = newdataset[probandIndex];
 	if(!proband){
 		console.warn("No proband defined");
 		return;
@@ -85,17 +99,21 @@ export function proband_add_child(opts, sex, age, yob, breastfeeding){
 	if(breastfeeding !== undefined)
 		newchild.breastfeeding = breastfeeding;
 	opts.dataset = newdataset;
-	opts.onChange(opts.dataset)
+	if (opts.onChange) {
+		opts.onChange(opts.dataset)
+	}
 	rebuild(opts);
 	return newchild.name;
 }
 
 // delete node using the name
-export function delete_node_by_name(opts, name){
-	function onDone(opts, dataset) {
+export function delete_node_by_name(opts: Options, name: string){
+	function onDone(opts: Options, dataset: PedigreeDatasetNode[]) {
 		// assign new dataset and rebuild pedigree
 		opts.dataset = dataset;
-		opts.onDone(dataset)
+		if (opts.onDone) {
+			opts.onDone(dataset)
+		}
 		rebuild(opts);
 	}
 	let newdataset = copy_dataset(pedcache.current(opts));
