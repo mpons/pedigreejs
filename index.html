@@ -209,7 +209,7 @@
 				let p = dataset[i];
 
 				msg += '\n'+famid+'\t';												// max 13 chars
-				msg += (p.display_name ? p.display_name : "NA")+'\t';				// display_name 
+				msg += (p.display_name ? p.display_name : "NA")+'\t';				// display_name
 				msg += ('proband' in p ? '1' : 0)+'\t';
 				msg += p.name+'\t';													// max 7 chars
 				msg += ('father' in p && !('noparents' in p)? p.father : 0)+'\t';	// max 7 chars
@@ -285,7 +285,7 @@
 			   window.URL.revokeObjectURL(url);
 			}, 0);
 		}
-		
+
 		$('#save-boadicea').click(function(_e) { save(false); });
 		$('#save-canrisk').click(function(_e)  { save(true); });
 	});

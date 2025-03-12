@@ -2,6 +2,9 @@
 .disabled {
 	color: grey;
 }
+.indi_rect {
+	cursor: pointer;
+}
 .popup_selection, .addpartner, .addparents, .delete, .settings {
 	cursor: pointer;
 }

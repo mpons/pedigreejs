@@ -3,12 +3,14 @@
 /* SPDX-FileCopyrightText: 2023 University of Cambridge
 /* SPDX-License-Identifier: GPL-3.0-or-later
 **/
-
+// @ts-nocheck
 // pedigree I/O
 import * as utils from './utils.js';
 import * as pedcache from './pedcache.js';
 import {readCanRisk, cancers, genetic_test1, pathology_tests} from './canrisk_file.js';
 import {get_bounds} from './zoom.js';
+import {PedigreeDatasetNode} from "@/models/PedigreeDatasetNode.ts";
+import {makeid} from "./utils.js";
 
 
 export function addIO(opts) {
@@ -190,7 +192,7 @@ export function copy_svg(opts) {
 }
 
 // get printable svg div, adjust size to tree dimensions and scale to fit
-function get_printable_svg(opts) {
+export function get_printable_svg(opts) {
 	let local_dataset = pedcache.current(opts); // get current dataset
 	if (local_dataset !== undefined && local_dataset !== null) {
 		opts.dataset = local_dataset;
@@ -213,7 +215,7 @@ function get_printable_svg(opts) {
 	svg.attr('height', d.h*k);	
 
 	svg.find(".diagram").attr("transform", "translate("+xi+", "+yi+") scale("+k+")");
-	return svg_div;
+	return svg;
 }
 
 // download the SVG to a file
@@ -307,7 +309,7 @@ function canrisk_validation(opts) {
 }
 
 /** Read and load pedigree data string */
-export function load_data(d, opts) {
+export function load_data(d, opts: Options) {
 	if(opts.DEBUG) console.log(d);
 	let risk_factors;
 	try {
@@ -336,7 +338,7 @@ export function load_data(d, opts) {
 				opts.dataset = readLinkage(d);
 			}
 		}
-		utils.validate_pedigree(opts);
+		utils.validatePedigree(opts);
 	} catch(err1) {
 		console.error(err1, d);
 		utils.messages("File Error", ( err1.message ? err1.message : err1));
@@ -551,6 +553,7 @@ export function process_ped(ped) {
 	}
 
 	// identify top_level and other nodes without parents
+	const nodesToAdd = []
 	for(let i=0;i<ped.length;i++) {
 		if(utils.getDepth(ped, ped[i].name) === 1) {
 			if(ped[i].level && ped[i].level === max_level) {
@@ -573,8 +576,36 @@ export function process_ped(ped) {
 						if(ped[i].level === (ped[j].level-1)) {
 							pidx = getPartnerIdx(ped, ped[j]);
 							if(pidx > -1 && i !== pidx) {
-								ped[i].mother = (ped[j].sex === 'F' ? ped[j].name : ped[pidx].name);
-								ped[i].father = (ped[j].sex === 'M' ? ped[j].name : ped[pidx].name);
+								const hiddenMother: PedigreeDatasetNode = {
+									name: `hidden_mother_${makeid(4)}`,
+									famid: ped[i].famid,
+									sex: 'F',
+									status: '0',
+									display_name: '',
+									proband: false,
+									ashkenazi: false,
+									parent: null,
+									top_level: true,
+									hidden: true,
+								}
+
+								const hiddenFather: PedigreeDatasetNode = {
+									name: `hidden_father_${makeid(4)}`,
+									famid: ped[i].famid,
+									sex: 'M',
+									status: '0',
+									display_name: '',
+									proband: false,
+									ashkenazi: false,
+									parent: null,
+									top_level: true,
+									hidden: true,
+								}
+								nodesToAdd.push(hiddenMother)
+								nodesToAdd.push(hiddenFather)
+								ped[i].mother = hiddenMother;
+								ped[i].father = hiddenFather;
+								ped[i].noparents = false
 								break;
 							}
 						}
@@ -585,6 +616,7 @@ export function process_ped(ped) {
 			delete ped[i].top_level;
 		}
 	}
+	ped = [...ped, ...nodesToAdd]
 	return ped;
 }
 
@@ -631,27 +663,28 @@ function update_parents_level(idx, level, dataset) {
 	}
 }
 
+
 // for a pedigree fix the levels of children nodes to be consistent with parent
 function fix_n_balance_levels(ped) {
 	let updated = false;
 	let l = ped.length;
 
 	for(let i=0;i<l;i++) {
-		let children = utils.getChildren(ped, ped[i]);
-		let prt_lvl = ped[i].level;
-		for(let j=0;j<children.length;j++){
-			if(prt_lvl - children[j].level > 1) {
-				children[j].level = prt_lvl-1;
-				let ptrs = utils.get_partners(ped, children[j]);
+		let children = utils.getChildrenFromFemale(ped, ped[i]);
+		let parentLevel = ped[i].level;
+		for(let j=0 ; j < children.length ; j++){
+			if(parentLevel - children[j].level > 1) {
+				children[j].level = parentLevel-1;
+				let partnersNames = utils.getPartnersNames(ped, children[j]);
 
-				for(let k=0;k<ptrs.length;k++){
-					let p = utils.getNodeByName(ped, ptrs[k])
-					p.level = prt_lvl-1;
+				for(let k=0;k<partnersNames.length;k++){
+					let p = utils.getNodeByName(ped, partnersNames[k])
+					p.level = parentLevel-1;
 
 					let m = utils.getNodeByName(ped, p.mother);
 					let f = utils.getNodeByName(ped, p.father);
-					if(m) m.level = prt_lvl;
-					if(f) f.level = prt_lvl;
+					if(m) m.level = parentLevel;
+					if(f) f.level = parentLevel;
 				}
 				updated = true;
 			}

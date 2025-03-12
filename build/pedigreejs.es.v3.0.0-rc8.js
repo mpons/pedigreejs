@@ -833,65 +833,51 @@ function adjust_coords(opts, root, flattenNodes) {
 		if (node.children) {
 			node.children.forEach(recurse);
 
-			if(node.data.father !== undefined) { 	// hidden nodes
+			if (node.data.father !== undefined) {   // hidden nodes
 				let father = getNodeByName(flattenNodes, node.data.father.name);
 				let mother = getNodeByName(flattenNodes, node.data.mother.name);
-				let xmid = (father.x + mother.x) /2;
-				if(!overlap(opts, root.descendants(), xmid, node.depth, [node.data.name])) {
-					node.x = xmid;   // centralise parent nodes
-					let diff = node.x - xmid;
-					if(node.children.length === 2 && (node.children[0].data.hidden || node.children[1].data.hidden)) {
-						if(!(node.children[0].data.hidden && node.children[1].data.hidden)) {
-							let child1 = (node.children[0].data.hidden ? node.children[1] : node.children[0]);
-							let child2 = (node.children[0].data.hidden ? node.children[0] : node.children[1]);
-							if( ((child1.x < child2.x && xmid < child2.x) || (child1.x > child2.x && xmid > child2.x)) &&
-								!overlap(opts, root.descendants(), xmid, child1.depth, [child1.data.name])){
-								child1.x = xmid;
-							}
-						}
-					} else if(node.children.length === 1 && !node.children[0].data.hidden) {
-						if(!overlap(opts, root.descendants(), xmid, node.children[0].depth, [node.children[0].data.name]))
-							node.children[0].x = xmid;
-					} else {
-						if(diff !== 0 && !nodesOverlap(opts, node, diff, root)){
-							if(node.children.length === 1) {
-								node.children[0].x = xmid;
-							} else {
-								let descendants = node.descendants();
-								if(opts.DEBUG)
-									console.log('ADJUSTING '+node.data.name+' NO. DESCENDANTS '+descendants.length+' diff='+diff);
-								for(let i=0; i<descendants.length; i++) {
-									if(node.data.name !== descendants[i].data.name)
-										descendants[i].x -= diff;
-								}
-							}
-						}
-					}
-				} else if((node.x < father.x && node.x < mother.x) || (node.x > father.x && node.x > mother.x)){
-						node.x = xmid;   // centralise parent nodes if it doesn't lie between mother and father
+				let xmid = (father.x + mother.x) / 2;
+
+				// Ensure parent nodes are centralized and avoid overlap
+				if (!overlap(opts, root.descendants(), xmid, node.depth, [node.data.name])) {
+					node.x = xmid;
+				} else {
+					// Adjust position to avoid overlap
+					node.x = adjust_position_to_avoid_overlap(opts, root, node, xmid);
+				}
+
+				// Adjust children positions to avoid crossing lines
+				if (node.children.length > 1) {
+					distribute_children_evenly(node.children, opts.symbol_size);
 				}
 			}
 		}
 	}
 	recurse(root);
-	recurse(root);
+	recurse(root); // Run twice to ensure proper adjustment
 }
 
-// test if moving siblings by diff overlaps with other nodes
-function nodesOverlap(opts, node, diff, root) {
-	let descendants = node.descendants();
-	let descendantsNames = $.map(descendants, function(descendant, _i){return descendant.data.name;});
-	let nodes = root.descendants();
-	for(let i=0; i<descendants.length; i++){
-		let descendant = descendants[i];
-		if(node.data.name !== descendant.data.name){
-			let xnew = descendant.x - diff;
-			if(overlap(opts, nodes, xnew, descendant.depth, descendantsNames))
-				return true;
+// Distribute children evenly to reduce crossings
+function distribute_children_evenly(children, symbol_size) {
+	let spacing = symbol_size * 2; // Minimum spacing between nodes
+	for (let i = 1; i < children.length; i++) {
+		if (children[i].x - children[i - 1].x < spacing) {
+			children[i].x = children[i - 1].x + spacing;
 		}
 	}
-	return false;
 }
+
+// Adjust position to avoid overlap with other nodes
+function adjust_position_to_avoid_overlap(opts, root, node, targetX) {
+	let nodesAtDepth = getNodesAtDepth(root.descendants(), node.depth, [node.data.name]);
+	for (let otherNode of nodesAtDepth) {
+		if (Math.abs(otherNode.x - targetX) < opts.symbol_size) {
+			targetX += opts.symbol_size * 2; // Shift to avoid overlap
+		}
+	}
+	return targetX;
+}
+
 
 // test if x position overlaps a node at the same depth
 function overlap(opts, nodes, xnew, depth, exclude_names) {
@@ -4062,8 +4048,13 @@ function build(options) {
 					' opts.height='+svg_dimensions.height+' height='+tree_dimensions.height);
 
 	let treemap = d3.tree().separation(function(a, b) {
-		return a.parent === b.parent || a.data.hidden || b.data.hidden ? 1.2 : 2.2;
+		// Increase separation for siblings and partners
+		if (a.parent === b.parent || a.data.hidden || b.data.hidden) {
+			return 1.5; // Adjust this value as needed
+		}
+		return 2.5; // Default separation
 	}).size([tree_dimensions.width, tree_dimensions.height]);
+
 
 	let nodes = treemap(root.sort(function(a, b) { return a.data.id - b.data.id; }));
 	let flattenNodes = nodes.descendants();
@@ -4200,22 +4191,25 @@ function build(options) {
 	// get path looping over node(s)
 	let draw_path = function(clash, dx, dy1, dy2, parent_node, cshift) {
 		let extend = function(i, l) {
-			if(i+1 < l)   // && Math.abs(clash[i] - clash[i+1]) < (opts.symbol_size*1.25)
-				return extend(++i);
+			if (i + 1 < l) return extend(++i, l);
 			return i;
 		};
 		let path = "";
-		for(let j=0; j<clash.length; j++) {
+		for (let j = 0; j < clash.length; j++) {
 			let k = extend(j, clash.length);
 			let dx1 = clash[j] - dx - cshift;
 			let dx2 = clash[k] + dx + cshift;
-			if(parent_node.x > dx1 && parent_node.x < dx2)
-				parent_node.y = dy2;
 
-			path += "L" + dx1 + "," +  (dy1 - cshift) +
-					"L" + dx1 + "," +  (dy2 - cshift) +
-					"L" + dx2 + "," +  (dy2 - cshift) +
-					"L" + dx2 + "," +  (dy1 - cshift);
+			// Adjust parent node position to avoid crossing
+			if (parent_node.x > dx1 && parent_node.x < dx2) {
+				parent_node.y = dy2 + cshift;
+			}
+
+			// Draw path with adjusted spacing
+			path += "L" + dx1 + "," + (dy1 - cshift) +
+				"L" + dx1 + "," + (dy2 - cshift) +
+				"L" + dx2 + "," + (dy2 - cshift) +
+				"L" + dx2 + "," + (dy1 - cshift);
 			j = k;
 		}
 		return path;
@@ -4437,10 +4431,10 @@ function check_ptr_link_clashes(opts, anode) {
 	let root = roots[opts.targetDiv];
 	let flattenNodes = flatten(root);
 	let mother, father;
-	if('name' in anode) {
+
+	if ('name' in anode) {
 		anode = getNodeByName(flattenNodes, anode.name);
-		if(!('mother' in anode.data))
-			return null;
+		if (!('mother' in anode.data)) return null;
 		mother = getNodeByName(flattenNodes, anode.data.mother);
 		father = getNodeByName(flattenNodes, anode.data.father);
 	} else {
@@ -4448,16 +4442,27 @@ function check_ptr_link_clashes(opts, anode) {
 		father = anode.father;
 	}
 
-	let x1 = (mother.x < father.x ? mother.x : father.x);
-	let x2 = (mother.x < father.x ? father.x : mother.x);
+	let x1 = Math.min(mother.x, father.x);
+	let x2 = Math.max(mother.x, father.x);
 	let dy = mother.y;
 
-	// identify clashes with other nodes at the same depth
-	let clash = $.map(flattenNodes, function(bnode, _i){
+	// Identify clashes with other nodes at the same depth
+	let clash = $.map(flattenNodes, function(bnode) {
 		return !bnode.data.hidden &&
-				bnode.data.name !== mother.data.name &&  bnode.data.name !== father.data.name &&
-				bnode.y === dy && bnode.x > x1 && bnode.x < x2 ? bnode.x : null;
+		bnode.data.name !== mother.data.name &&
+		bnode.data.name !== father.data.name &&
+		bnode.y === dy &&
+		bnode.x > x1 &&
+		bnode.x < x2 ? bnode.x : null;
 	});
+
+	// Adjust spacing if clashes are detected
+	if (clash.length > 0) {
+		let spacing = opts.symbol_size * 2;
+		for (let i = 0; i < clash.length; i++) {
+			clash[i] += spacing;
+		}
+	}
 	return clash.length > 0 ? clash : null;
 }
 
