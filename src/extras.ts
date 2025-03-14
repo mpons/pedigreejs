@@ -8,7 +8,7 @@
 import {copy_dataset, getNodeByName, getProbandIndex} from './utils.js';
 import {rebuild} from './pedigree.js';
 import {delete_node_dataset} from './widgets.js';
-import {addchild} from './widgets.js';
+import {addChild} from './widgets.js';
 import {syncTwins} from './twins.js';
 import * as pedcache from './pedcache.js';
 import {Options} from "@/models/Options.ts";
@@ -93,7 +93,7 @@ export function proband_add_child(opts: Options, sex: Sex, age: number, yob: num
 		console.warn("No proband defined");
 		return;
 	}
-	let newchild = addchild(opts, newdataset, proband, sex, 1)[0];
+	let newchild = addChild(opts, newdataset, proband, sex, 1)[0];
 	newchild.age = age;
 	newchild.yob = yob;
 	if(breastfeeding !== undefined)

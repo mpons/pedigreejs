@@ -36,43 +36,42 @@ import {computeDistancesFromProband} from "./utils.ts";
 
 
 export function build(options: Options) {
-    let opts = {
-        ...{ // defaults
-            targetDiv: 'pedigree_edit',
-            dataset: [{"name": "m21", "display_name": "father", "sex": "M", "top_level": true},
-                {"name": "f21", "display_name": "mother", "sex": "F", "top_level": true},
-                {"name": "ch1", "display_name": "me", "sex": "F", "mother": "f21", "father": "m21", "proband": true}],
-            width: 600,
-            height: 400,
-            symbol_size: 35,
-            zoomSrc: ['wheel', 'button'],
-            zoomIn: 1.0,
-            zoomOut: 1.0,
-            dragNode: true,
-            showWidgets: true,
-            diseases: [{'type': 'breast_cancer', 'colour': '#F68F35'},
-                {'type': 'breast_cancer2', 'colour': 'pink'},
-                {'type': 'ovarian_cancer', 'colour': '#306430'},
-                {'type': 'pancreatic_cancer', 'colour': '#4289BA'},
-                {'type': 'prostate_cancer', 'colour': '#D5494A'}],
-            labels: ['stillbirth', ['age', 'yob'], 'alleles',
-                ['brca1_gene_test', 'brca2_gene_test', 'palb2_gene_test', 'chek2_gene_test', 'atm_gene_test'],
-                ['rad51d_gene_test', 'rad51c_gene_test', 'brip1_gene_test', 'hoxb13_gene_test'],
-                ['er_bc_pathology', 'pr_bc_pathology', 'her2_bc_pathology', 'ck14_bc_pathology', 'ck56_bc_pathology']],
-            keep_proband_on_reset: false,
-            font_size: '.75em',
-            font_family: 'Helvetica',
-            font_weight: 700,
-            background: "#FAFAFA",
-            node_background: '#fdfdfd',
-            validate: true,
-            DEBUG: false,
-            onChange: () => {},
-            onDone: () => {},
-            onEdit: () => {}
-        },
-        ...options
-    } as Options;
+    const defaults = { // defaults
+        targetDiv: 'pedigree_edit',
+        dataset: [{"name": "m21", "display_name": "father", "sex": "M", "top_level": true},
+            {"name": "f21", "display_name": "mother", "sex": "F", "top_level": true},
+            {"name": "ch1", "display_name": "me", "sex": "F", "mother": "f21", "father": "m21", "proband": true}],
+        width: 600,
+        height: 400,
+        symbol_size: 35,
+        zoomSrc: ['wheel', 'button'],
+        zoomIn: 1.0,
+        zoomOut: 1.0,
+        dragNode: true,
+        showWidgets: true,
+        diseases: [{'type': 'breast_cancer', 'colour': '#F68F35'},
+            {'type': 'breast_cancer2', 'colour': 'pink'},
+            {'type': 'ovarian_cancer', 'colour': '#306430'},
+            {'type': 'pancreatic_cancer', 'colour': '#4289BA'},
+            {'type': 'prostate_cancer', 'colour': '#D5494A'}],
+        labels: ['stillbirth', ['age', 'yob'], 'alleles',
+            ['brca1_gene_test', 'brca2_gene_test', 'palb2_gene_test', 'chek2_gene_test', 'atm_gene_test'],
+            ['rad51d_gene_test', 'rad51c_gene_test', 'brip1_gene_test', 'hoxb13_gene_test'],
+            ['er_bc_pathology', 'pr_bc_pathology', 'her2_bc_pathology', 'ck14_bc_pathology', 'ck56_bc_pathology']],
+        keep_proband_on_reset: false,
+        font_size: '.75em',
+        font_family: 'Helvetica',
+        font_weight: 700,
+        background: "#FAFAFA",
+        node_background: '#fdfdfd',
+        validate: true,
+        DEBUG: false,
+        onChange: () => {},
+        onDone: () => {},
+        onEdit: () => {}
+    }
+
+    const opts = utils.deepMerge<Options>(defaults, options) as Options;
 
     if (document.querySelectorAll("#fullscreen").length === 0) {
         // add undo, redo, fullscreen buttons and event listeners once
@@ -100,6 +99,7 @@ export function build(options: Options) {
         return
     }
 
+    console.log('Person found in the dataset', opts.dataset.length)
     if (opts.DEBUG)
         utils.print_opts(opts);
 
@@ -160,8 +160,8 @@ export function build(options: Options) {
 
     // Sorts the nodes by id
     let nodes = treemap(root.sort(function (a, b) {
-        //a.data.display_name = `${a.data.id} ${a.data.displayProbandDistance} ${a.data.realProbandDistance}`
-        //b.data.display_name = `${b.data.id} ${b.data.displayProbandDistance} ${b.data.realProbandDistance}`
+        a.data.display_name = `${a.data.id} ${a.data.displayProbandDistance || ''} ${a.data.realProbandDistance | ''}`
+        b.data.display_name = `${b.data.id} ${b.data.displayProbandDistance || ''} ${b.data.realProbandDistance || ''}`
 
         return ascending(a.data.id, b.data.id);
     }));
@@ -175,6 +175,7 @@ export function build(options: Options) {
     }
 
     utils.adjustNodesCoordinates(opts, nodes, flattenNodes);
+
 
     let partnerLinkNodes = utils.getD3PartnerLinkNodes(flattenNodes, partners);
 
@@ -335,7 +336,6 @@ export function build(options: Options) {
     console.log('Clashing nodes', clashingNodes)
     const clashingNodeNames = clashingNodes.map((node) => node.data.name)
     clashingNodes.forEach((node) => {
-
         const partners = utils.getPartners(opts.dataset || [], node.data)
         const partnersAlsoClashing = partners
             .map((partner) => partner.name)
@@ -368,6 +368,7 @@ export function build(options: Options) {
         return "translate(" + d.x + "," + d.y + ")";
     })
 
+    console.log(partnerLinkNodes)
     drawConnectionLinesBetweenPartners(
         ped,
         root,
@@ -884,9 +885,12 @@ export function rebuild(opts: Options) {
 document.addEventListener('rebuild', (event: Event) => {
     const customEvent = event as CustomEvent<Options>;
     rebuild(customEvent.detail);
+    e.stopPropagation();
+
 });
 
 document.addEventListener('build', (event: Event) => {
     const customEvent = event as CustomEvent<Options>;
     build(customEvent.detail);
+    e.stopPropagation();
 });

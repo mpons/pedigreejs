@@ -1,5 +1,7 @@
 import {PedigreeDatasetNode} from "@/models/PedigreeDatasetNode.ts";
 import {DiseaseSetting} from "@/models/DiseaseSetting.ts";
+import {HierarchyNode} from "d3";
+import {DisplayType} from "@/models/Types/displayType.ts";
 
 export interface Options {
     targetDiv: string
@@ -13,8 +15,9 @@ export interface Options {
     font_weight: number
     background: string
     node_background: string
+    displayType: DisplayType
     store_type: 'array' | 'local' | 'storage' | 'session'
-    edit: boolean
+    //edit: boolean
     dragNode?: boolean
     showWidgets?: boolean
     zoomIn: number
@@ -27,5 +30,7 @@ export interface Options {
     onDone?: (dataset: PedigreeDatasetNode[]) => void
     onChange?: (dataset: PedigreeDatasetNode[]) => void
     onEdit?: (personId: string) => void
+    edit?: (opts: Options, d: HierarchyNode<PedigreeDatasetNode>) => void
+    nodeClick?: (node: PedigreeDatasetNode) => void
     validate?: ((opts: Options) => boolean) | boolean
 }

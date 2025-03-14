@@ -105,8 +105,10 @@ function set_count(opts: Options, count: number) {
 }
 
 export function init_cache(opts: Options) {
-	if(!opts.dataset)
+	if(!opts.dataset) {
 		return;
+	}
+
 	let count = get_count(opts);
 
 	if (has_browser_storage(opts)) {   // local storage
@@ -117,7 +119,8 @@ export function init_cache(opts: Options) {
 		if(getArrayCache(opts) === undefined) {
 			arrayCache[getPedigreeCachePrefix(opts)] = [];
 		}
-		getArrayCache(opts).push(JSON.stringify(opts.dataset));
+		const jsonContent = JSON.stringify(opts.dataset)
+		getArrayCache(opts).push(jsonContent);
 	}
 	if(count < max_limit)
 		count++;

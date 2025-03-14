@@ -11,6 +11,7 @@ import {PedigreeDatasetNode} from "@/models/PedigreeDatasetNode.ts";
 import {Sex} from "@/models/Types/Sex.ts";
 import {HierarchyNode} from "d3";
 import {D3PartnerLink, PedigreePartnerLink} from "@/models/Types/PartnerLink.ts";
+import {DisplayType} from "@/models/Types/displayType.ts";
 
 
 export let roots: Record<string, HierarchyNode<PedigreeDatasetNode>> = {};
@@ -152,46 +153,69 @@ export function getFormattedDate(timeOnly: boolean){
 		return d.getFullYear() + "-" + ('0' + (d.getMonth() + 1)).slice(-2) + "-" + ('0' + d.getDate()).slice(-2) + " " + ('0' + d.getHours()).slice(-2) + ":" + ('0' + d.getMinutes()).slice(-2) + ":" + ('0' + d.getSeconds()).slice(-2);
  }
 
-function showDialog(title: string, msg: string, onConfirm: (opts: Options, dataset: PedigreeDatasetNode[]) => void, opts: Options, dataset: PedigreeDatasetNode[]) {
+function showDialog(title: string, msg?: string, onConfirm?: (opts: Options, dataset: PedigreeDatasetNode[]) => void, opts?: Options, dataset?: PedigreeDatasetNode[]) {
 	const errModalEl = document.getElementById('errModal');
 	const modalTitle = errModalEl?.querySelector('.modal-title');
 	const modalBodyInput = errModalEl?.querySelector('.modal-body');
-	if(onConfirm) {
-		document.querySelectorAll('#errModal button.hidden').forEach((elt) => elt.classList.remove("hidden"));
-		Array.from(document.querySelectorAll('#errModal button'))
-			.filter(
-				(button) => button.textContent?.includes('OK')
-			).forEach((elt) => {
-				elt.addEventListener("click", () => {
-					onConfirm(opts, dataset);
-					elt.addEventListener('click', () => {});
-				})
-			})
-	} else {
-		const cancelBtn = Array.from(document.querySelectorAll('#errModal button'))
-			.filter(
-				(button) => button.textContent?.includes('CANCEL')
-			)[0];
-		if(!cancelBtn.classList.contains("hidden")) {
-			cancelBtn.classList.add("hidden");
+
+	// Get all buttons in the modal
+	const buttons = Array.from(errModalEl?.querySelectorAll('button') || []);
+	const okButtons = buttons.filter(button => button.textContent?.includes('OK'));
+	const cancelButton = buttons.find(button => button.textContent?.includes('CANCEL'));
+
+	// Clear previous event listeners
+	okButtons.forEach(button => {
+		// Clone and replace to remove all event listeners
+		const newButton = button.cloneNode(true);
+		if (button.parentNode) {
+			button.parentNode.replaceChild(newButton, button);
 		}
-		Array.from(document.querySelectorAll('#errModal button'))
-			.filter(
-				(button) => button.textContent?.includes('OK')
-			).forEach((elt) => {
-				elt.addEventListener('click', () => {});
-			})
+	});
+
+	if (onConfirm) {
+		// Show all hidden buttons
+		errModalEl?.querySelectorAll('button.hidden').forEach(button =>
+			button.classList.remove("hidden")
+		);
+
+		// Add click event to OK buttons
+		okButtons.forEach(button => {
+			button.addEventListener("click", () => {
+				if (!opts) {
+					return
+				}
+				onConfirm(opts, dataset || []);
+			}, { once: true }); // Use once: true to auto-remove the listener after first click
+		});
+	} else {
+		// Hide cancel button if it exists
+		if (cancelButton && !cancelButton.classList.contains("hidden")) {
+			cancelButton.classList.add("hidden");
+		}
 	}
 
+	// Set modal content
 	if (modalTitle) {
 		modalTitle.textContent = title;
 	}
-	if (modalBodyInput) {
+	if (modalBodyInput && msg) {
 		modalBodyInput.textContent = msg;
 	}
 
-	//document.getElementById("errModal").modal("show");
+	// Show the modal using vanilla JS
+	// Replace the jQuery modal("show") with appropriate vanilla JS
+	if (errModalEl) {
+		errModalEl.style.display = 'block';
+		errModalEl.classList.add('show');
+		document.body.classList.add('modal-open');
+
+		// Add backdrop if needed
+		const backdrop = document.createElement('div');
+		backdrop.className = 'modal-backdrop fade show';
+		document.body.appendChild(backdrop);
+	}
 }
+
 
 /**
  * Show message or confirmation dialog.
@@ -201,37 +225,74 @@ function showDialog(title: string, msg: string, onConfirm: (opts: Options, datas
  * @param opts	  - pedigreejs options
  * @param dataset	- pedigree dataset
  */
-export function messages(title: string, msg: string, onConfirm: (opts: Options) => void, opts: Options, dataset: PedigreeDatasetNode[]) {
-	// try {
-	// 	if(onConfirm) {
-	// 		$('<div id="msgDialog">'+msg+'</div>').dialog({
-	// 				modal: true,
-	// 				title: title,
-	// 				width: 350,
-	// 				buttons: {
-	// 					"Yes": function () {
-	// 						$(this).dialog('close');
-	// 						onConfirm(opts, dataset);
-	// 					},
-	// 					"No": function () {
-	// 						$(this).dialog('close');
-	// 					}
-	// 				}
-	// 			});
-	// 	} else {
-	// 		$('<div id="msgDialog">'+msg+'</div>').dialog({
-	// 			title: title,
-	// 			width: 350,
-	// 			buttons: [{
-	// 				text: "OK",
-	// 				click: function() { $( this ).dialog( "close" );}
-	// 			}]
-	// 		});
-	// 	}
-	// } catch(err) {
+export function messages(title: string, msg?: string, onConfirm?: (opts: Options, dataset?: PedigreeDatasetNode[]) => void, opts?: Options, dataset?: PedigreeDatasetNode[]) {
+	try {
+		// Create modal container
+		const modal = document.createElement('div');
+		modal.id = 'msgDialog';
+		modal.innerHTML = msg || '';
+		modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000; max-width: 350px; width: 100%;';
+
+		// Create overlay
+		const overlay = document.createElement('div');
+		overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;';
+
+		// Create title
+		const titleElement = document.createElement('div');
+		titleElement.textContent = title;
+		titleElement.style.cssText = 'font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;';
+		modal.prepend(titleElement);
+
+		// Create button container
+		const buttonContainer = document.createElement('div');
+		buttonContainer.style.cssText = 'display: flex; justify-content: flex-end; margin-top: 20px; gap: 10px;';
+
+		// Close function
+		const closeModal = () => {
+			document.body.removeChild(modal);
+			document.body.removeChild(overlay);
+		};
+
+		if (onConfirm) {
+			// Yes button
+			const yesButton = document.createElement('button');
+			yesButton.textContent = 'Yes';
+			yesButton.style.cssText = 'padding: 8px 16px; cursor: pointer;';
+			yesButton.onclick = () => {
+				closeModal();
+				if (!opts) {
+					return
+				}
+				onConfirm(opts, dataset);
+			};
+
+			// No button
+			const noButton = document.createElement('button');
+			noButton.textContent = 'No';
+			noButton.style.cssText = 'padding: 8px 16px; cursor: pointer;';
+			noButton.onclick = closeModal;
+
+			buttonContainer.appendChild(yesButton);
+			buttonContainer.appendChild(noButton);
+		} else {
+			// OK button
+			const okButton = document.createElement('button');
+			okButton.textContent = 'OK';
+			okButton.style.cssText = 'padding: 8px 16px; cursor: pointer;';
+			okButton.onclick = closeModal;
+
+			buttonContainer.appendChild(okButton);
+		}
+
+		modal.appendChild(buttonContainer);
+		document.body.appendChild(overlay);
+		document.body.appendChild(modal);
+
+	} catch(err) {
 		showDialog(title, msg, onConfirm, opts, dataset);
-	//}
+	}
 }
+
 
 /**
  * Validate age and yob is consistent with current year. The sum of age and
@@ -290,7 +351,6 @@ export function buildTree(
 
 	let id = givenId || 1
 
-	let currentNodes = flatten(root);
 	let partners: PedigreePartnerLink[] = [];
 
 	// We go through all the children of the given person
@@ -303,9 +363,12 @@ export function buildTree(
 			) {
 				// Here the child is the person's mother or father
 				// M or F will be the current child, we use the father/mother of the current person to create partners
-				let m = getPedigreeNodeByName(currentNodes, getName(person.mother));
-				let f = getPedigreeNodeByName(currentNodes, getName(person.father));
+				let m = getPedigreeNodeByName(opts.dataset || [], getName(person.mother));
+				let f = getPedigreeNodeByName(opts.dataset || [], getName(person.father));
 
+				if (m === undefined || f === undefined) {
+					console.log('undefined parent found', person)
+				}
 				// Should be possible to delete the following 2 lines
 				//m = (m !== undefined ? m : getPedigreeNodeByName(opts.dataset || [], getName(person.mother)));
 				//f = (f !== undefined ? f : getPedigreeNodeByName(opts.dataset || [], getName(person.father)));
@@ -319,10 +382,9 @@ export function buildTree(
 			}
 		});
 	});
-
-	if (givenId === undefined) {
+	if (givenId === undefined && opts.displayType === 'distance') {
 		// We balance the first generation
-		const partnersFatherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) < 0)
+		const partnersFatherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) <= 0)
 		const partnersMotherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) > 0)
 
 		partners = [...middleBalancedSort(partnersFatherSide), ...middleBalancedSort(partnersMotherSide)]
@@ -356,7 +418,7 @@ export function buildTree(
 			let fidx = getIdxByName(opts.dataset!, male.name)
 
 			if((!('id' in male) && !('id' in female)) || (male.id === undefined && female.id === undefined)) {
-				id = setChildrenId(referencePerson.children || [], id || 0);
+				id = setChildrenId(referencePerson.children || [], id || 0, opts.displayType);
 			}
 
 			// look at grandparents index
@@ -364,15 +426,20 @@ export function buildTree(
 			//const sign = (father.probandDistance || 1) / Math.abs(father.probandDistance || 1)
 			const parentDistance = ((male.displayProbandDistance || 1) + (male.displayProbandDistance || 1)) / 2
 			if (gp.fidx < gp.midx) {
-			 	male.id = (id!++) * (male.displayProbandDistance || 1);
-			 	parent.id = (id!++) * (parentDistance);
-			 	female.id = (id!++) * (female.displayProbandDistance || 1);
+			 	male.id = (id!++)
+			 	parent.id = (id!++)
+			 	female.id = (id!++)
 			} else {
-				female.id = (id!++) * (female.displayProbandDistance || 1);
-				parent.id = (id!++) * (parentDistance);
-				male.id = (id!++) * (male.displayProbandDistance || 1);
+				female.id = (id!++)
+				parent.id = (id!++)
+				male.id = (id!++)
 			}
 
+			if (opts.displayType === 'distance') {
+				male.id *= (male.displayProbandDistance || 1);
+				parent.id *= parentDistance;
+				female.id *= (female.displayProbandDistance || 1);
+			}
 			updateParent(female, parent);
 			updateParent(male, parent);
 
@@ -452,7 +519,7 @@ function updateParent(
 	person.parent_node.push(parent);
 }
 
-function setChildrenId(children: PedigreeDatasetNode[], startId: number) {
+function setChildrenId(children: PedigreeDatasetNode[], startId: number, displayType: DisplayType = 'base') {
 	// sort twins to lie next to each other
 	// Sort equal distance to proband nodes to be next to each other
 	children.sort(function(a, b) {
@@ -473,7 +540,10 @@ function setChildrenId(children: PedigreeDatasetNode[], startId: number) {
 
 	children.forEach((p) => {
 		if (p.id === undefined) {
-			p.id = (startId++) * (p.displayProbandDistance || 1);
+			p.id = (startId++)
+		}
+		if (displayType === 'distance') {
+			p.id *= (p.displayProbandDistance || 1)
 		}
 	})
 
@@ -1251,3 +1321,20 @@ export function get_tree_dimensions(opts: Options) {
 	};
 }
 
+export function deepMerge<T>(target: T, source: T) {
+	const result = {...target};
+
+	for (const key in source) {
+		if (source[key] instanceof Object && target[key] instanceof Object) {
+			if (Array.isArray(source[key]) && Array.isArray(target[key])) {
+				result[key] = source[key];
+			} else {
+				result[key] = deepMerge(target[key], source[key]);
+			}
+		} else {
+			result[key] = source[key];
+		}
+	}
+
+	return result;
+}

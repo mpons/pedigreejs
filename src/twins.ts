@@ -30,11 +30,11 @@ export function setMzTwin(
 }
 
 // get a new unique twins ID, max of 10 twins in a pedigree
-export function getUniqueTwinID(dataset: PedigreeDatasetNode[], twin_type: keyof Pick<PedigreeDatasetNode, 'mztwin'|'dztwin'>) {
+export function getUniqueTwinID(dataset: PedigreeDatasetNode[], twinType: 'mztwin'|'dztwin') {
 	let mz = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A'];
 	for(let i=0; i<dataset.length; i++) {
-		if(dataset[i][twin_type]) {
-			let idx = mz.indexOf(dataset[i][twin_type] || '0');
+		if(dataset[i][twinType]) {
+			let idx = mz.indexOf(dataset[i][twinType] || '0');
 			if (idx > -1)
 				mz.splice(idx, 1);
 		}
