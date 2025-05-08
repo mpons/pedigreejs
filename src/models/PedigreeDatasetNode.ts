@@ -9,6 +9,7 @@ export interface PedigreeDatasetNode {
     parent_node?: PedigreeDatasetNode[]
     sex: Sex
     top_level?: boolean
+    level?: number
     hidden?: boolean
     exclude?: boolean
     display_name: string

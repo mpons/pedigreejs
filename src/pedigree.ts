@@ -174,8 +174,10 @@ export function build(options: Options) {
 
     // Sorts the nodes by id
     let nodes = treemap(root.sort(function (a, b) {
-        //a.data.display_name = `${a.data.id} ${a.data.subtreeWidth || 'c'} ${a.data.realProbandDistance || ''}  ${a.data.lineageHeight || ''}`
-        //b.data.display_name = `${b.data.id} ${b.data.subtreeWidth || 'c'} ${b.data.realProbandDistance || ''}  ${b.data.lineageHeight || ''}`
+        if (opts.DEBUG) {
+            a.data.display_name = `${a.data.id} ${a.data.subtreeWidth || 'c'} ${a.data.realProbandDistance || ''}  ${a.data.lineageHeight || ''}`
+            b.data.display_name = `${b.data.id} ${b.data.subtreeWidth || 'c'} ${b.data.realProbandDistance || ''}  ${b.data.lineageHeight || ''}`
+        }
 
         return ascending(a.data.id, b.data.id);
     }));

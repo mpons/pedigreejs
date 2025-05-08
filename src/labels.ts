@@ -26,11 +26,6 @@ export function addLabels(opts: Options, node: Selection<SVGGElement, HierarchyP
         },
         //(1.2 * opts.symbol_size),
         (d) => {
-            if (opts.DEBUG) {
-                const alternative = ('name' in d.data ? d.data.name : 'N/A')
-                return ('display_name' in d.data ? d.data.display_name : alternative) + '  ' + d.data.id;
-            }
-
             return 'display_name' in d.data ? d.data.display_name : '';
         }
         , undefined,

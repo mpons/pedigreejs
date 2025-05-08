@@ -383,6 +383,7 @@ export function buildTree(
 			}
 		});
 	});
+
 	if (givenId === undefined ) {
 		// We balance the first generation
 		const partnersFatherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) <= 0)
@@ -521,10 +522,25 @@ function updateParent(
 }
 
 function setChildrenId(children: PedigreeDatasetNode[], startId: number, displayType: DisplayType = 'base') {
+
+	children.forEach((p) => {
+		if (p.id === undefined) {
+			p.id = (startId++)
+		}
+		if (displayType === 'distance') {
+			p.id *= (p.displayProbandDistance || 1)
+		}
+	})
+
 	// sort twins to lie next to each other
 	// Sort equal distance to proband nodes to be next to each other
 	children.sort(function(a, b) {
 		if(a.mztwin && b.mztwin && a.mztwin === b.mztwin) {
+			if (a.id && b.id && a.id < b.id) {
+				b.id = a.id
+			} else {
+				a.id = b.id
+			}
 			return 0
 		}
 
@@ -538,15 +554,6 @@ function setChildrenId(children: PedigreeDatasetNode[], startId: number, display
 
 		return 0
 	});
-
-	children.forEach((p) => {
-		if (p.id === undefined) {
-			p.id = (startId++)
-		}
-		if (displayType === 'distance') {
-			p.id *= (p.displayProbandDistance || 1)
-		}
-	})
 
 	return startId;
 }
