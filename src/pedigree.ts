@@ -104,7 +104,6 @@ export function build(options: Options) {
         return
     }
 
-    console.log('Person found in the dataset', opts.dataset.length)
     if (opts.DEBUG)
         utils.print_opts(opts);
 
@@ -168,15 +167,15 @@ export function build(options: Options) {
             const bMultiplier = getNodeWidthMultiplier(options, b)
             const highestMultiplier = aMultiplier > bMultiplier ? aMultiplier : bMultiplier
             //console.log(highestMultiplier)
-            return aMultiplier * opts.horizontalSpacingFactor + bMultiplier * opts.horizontalSpacingFactor;
+            return aMultiplier * opts.horizontalSpacingFactor + highestMultiplier * opts.horizontalSpacingFactor;
         })
         .size([tree_dimensions.width, tree_dimensions.height]);
 
     // Sorts the nodes by id
     let nodes = treemap(root.sort(function (a, b) {
         if (opts.DEBUG) {
-            a.data.display_name = `${a.data.id} ${a.data.subtreeWidth || 'c'} ${a.data.realProbandDistance || ''}  ${a.data.lineageHeight || ''}`
-            b.data.display_name = `${b.data.id} ${b.data.subtreeWidth || 'c'} ${b.data.realProbandDistance || ''}  ${b.data.lineageHeight || ''}`
+            a.data.display_name = `|${a.data.name}|${a.data.id}_${a.data.subtreeWidth || 'c'}_${a.data.realProbandDistance || ''}_${a.data.lineageHeight || ''}`
+            b.data.display_name = `|${b.data.name}|${b.data.id}_${b.data.subtreeWidth || 'c'}_${b.data.realProbandDistance || ''}_${b.data.lineageHeight || ''}`
         }
 
         return ascending(a.data.id, b.data.id);
@@ -209,7 +208,7 @@ export function build(options: Options) {
 
     // provide a border to the node
     allNodes.filter(function (d) {
-        return !d.data.hidden;
+        return opts.DEBUG ? true : !d.data.hidden;
     })
         .append("path")
         .attr("shape-rendering", "geometricPrecision")
@@ -237,7 +236,7 @@ export function build(options: Options) {
 
     // set a clippath
     allNodes.filter(function (d) {
-        return !(d.data.hidden && !opts.DEBUG);
+        return opts.DEBUG ? true : !d.data.hidden;
     })
         .append("clipPath")
         .attr("id", function (d) {

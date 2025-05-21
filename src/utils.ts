@@ -384,7 +384,7 @@ export function buildTree(
 		});
 	});
 
-	if (givenId === undefined ) {
+	if (givenId === undefined) {
 		// We balance the first generation
 		const partnersFatherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) <= 0)
 		const partnersMotherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) > 0)
@@ -428,13 +428,13 @@ export function buildTree(
 			//const sign = (father.probandDistance || 1) / Math.abs(father.probandDistance || 1)
 			const parentDistance = ((male.displayProbandDistance || 1) + (male.displayProbandDistance || 1)) / 2
 			if (gp.fidx < gp.midx) {
-			 	male.id = (id!++)
-			 	parent.id = (id!++)
-			 	female.id = (id!++)
+			 	male.id = id++
+			 	parent.id = id++
+			 	female.id = id++
 			} else {
-				female.id = (id!++)
-				parent.id = (id!++)
-				male.id = (id!++)
+				female.id = id++
+				parent.id = id++
+				male.id = id++
 			}
 
 			if (opts.displayType === 'distance') {
@@ -525,7 +525,8 @@ function setChildrenId(children: PedigreeDatasetNode[], startId: number, display
 
 	children.forEach((p) => {
 		if (p.id === undefined) {
-			p.id = (startId++)
+			p.id = (startId++) * (p.displayProbandDistance || 1)
+			return
 		}
 		if (displayType === 'distance') {
 			p.id *= (p.displayProbandDistance || 1)
@@ -995,7 +996,6 @@ export function computeDistancesFromProband(dataset: PedigreeDatasetNode[]) {
 		}
 		visitedPersons[person.name] = true
 		const currentDistance = (person.displayProbandDistance || 0)
-		//console.log('recurse', person.display_name, currentDistance, sideSign)
 
 		const father = getPedigreeNodeByName(dataset, getName(person.father))
 		const mother = getPedigreeNodeByName(dataset, getName(person.mother))
@@ -1032,6 +1032,14 @@ export function computeDistancesFromProband(dataset: PedigreeDatasetNode[]) {
 			})
 
 	}
+
+	const partners = getPartners(dataset, probandPerson)
+	partners.forEach((partner) => {
+		if (partner.displayProbandDistance === undefined) {
+			partner.displayProbandDistance = 0
+			partner.realProbandDistance = 0
+		}
+	})
 
 	// We want to have different signs for the distance to indicate which side of the family, relative to the proband
 	// we are on.
@@ -1399,7 +1407,6 @@ export function adjustNodesCoordinates(opts: Options, root: HierarchyNode<Pedigr
 	}
 
 	recurse(root);
-	//recurse(root);
 }
 
 // test if moving siblings by diff overlaps with other nodes

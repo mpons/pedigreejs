@@ -596,36 +596,7 @@ export function process_ped(ped) {
                         if (ped[i].level === (ped[j].level - 1)) {
                             pidx = getPartnerIdx(ped, ped[j]);
                             if (pidx > -1 && i !== pidx) {
-                                const hiddenMother: PedigreeDatasetNode = {
-                                    name: `hidden_mother_${makeid(4)}`,
-                                    famid: ped[i].famid,
-                                    sex: 'F',
-                                    status: '0',
-                                    display_name: '',
-                                    proband: false,
-                                    ashkenazi: false,
-                                    parent: null,
-                                    top_level: true,
-                                    hidden: true,
-                                }
-
-                                const hiddenFather: PedigreeDatasetNode = {
-                                    name: `hidden_father_${makeid(4)}`,
-                                    famid: ped[i].famid,
-                                    sex: 'M',
-                                    status: '0',
-                                    display_name: '',
-                                    proband: false,
-                                    ashkenazi: false,
-                                    parent: null,
-                                    top_level: true,
-                                    hidden: true,
-                                }
-                                nodesToAdd.push(hiddenMother)
-                                nodesToAdd.push(hiddenFather)
-                                ped[i].mother = hiddenMother;
-                                ped[i].father = hiddenFather;
-                                ped[i].noparents = false
+                                addHiddenParents(ped[i], max_level, nodesToAdd)
                                 break;
                             }
                         }
@@ -638,6 +609,50 @@ export function process_ped(ped) {
     }
     ped = [...ped, ...nodesToAdd]
     return ped;
+}
+
+function addHiddenParents(person: PedigreeDatasetNode, maxLevel: number, nodesToAdd: PedigreeDatasetNode[]) {
+    const newLevel = person.level + 1
+    const hiddenMother: PedigreeDatasetNode = {
+        name: `hidden_mother_${makeid(4)}`,
+        famid: person.famid,
+        sex: 'F',
+        status: '0',
+        display_name: '',
+        proband: false,
+        ashkenazi: false,
+        parent: null,
+        level: newLevel,
+        top_level: newLevel === maxLevel,
+        hidden: true,
+    }
+
+    const hiddenFather: PedigreeDatasetNode = {
+        name: `hidden_father_${makeid(4)}`,
+        famid: person.famid,
+        sex: 'M',
+        status: '0',
+        display_name: '',
+        proband: false,
+        ashkenazi: false,
+        parent: null,
+        level: newLevel,
+        top_level: newLevel === maxLevel,
+        hidden: true,
+    }
+    nodesToAdd.push(hiddenMother)
+    nodesToAdd.push(hiddenFather)
+    person.mother = hiddenMother;
+    person.father = hiddenFather;
+    person.noparents = false
+
+    if (hiddenMother.level < maxLevel) {
+        addHiddenParents(hiddenMother, maxLevel, nodesToAdd)
+    }
+
+    if (hiddenFather.level < maxLevel) {
+        addHiddenParents(hiddenFather, maxLevel, nodesToAdd)
+    }
 }
 
 // get the partners for a given node
@@ -703,13 +718,13 @@ function fix_n_balance_levels(ped) {
                     let p = utils.getNodeByName(ped, partnersNames[k])
                     p.level = parentLevel - 1;
 
-                    let m = utils.getNodeByName(ped, p.mother);
-                    let f = utils.getNodeByName(ped, p.father);
-                    if (m) {
-                        m.level = parentLevel;
+                    let mother = utils.getNodeByName(ped, p.mother);
+                    let father = utils.getNodeByName(ped, p.father);
+                    if (mother) {
+                        mother.level = parentLevel;
                     }
-                    if (f) {
-                        f.level = parentLevel;
+                    if (father) {
+                        father.level = parentLevel;
                     }
                 }
                 updated = true;
@@ -721,9 +736,9 @@ function fix_n_balance_levels(ped) {
     // @TODO: optimize this part
     for (let i = 0; i < ped.length; i++) {
         let partnersNames = utils.getPartnersNames(ped, ped[i]);
-
         for (let k = 0; k < partnersNames.length; k++) {
             const partner = utils.getNodeByName(ped, partnersNames[k])
+            console.log('partners of',  ped[i].display_name, ped[i].level, partner.display_name, partner.level)
             if (partner.level > ped[i].level) {
                 ped[i].level = partner.level
             } else {

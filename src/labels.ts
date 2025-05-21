@@ -6,11 +6,11 @@
 
 import {prefixInObj} from './utils.ts';
 import {Options} from "@/models/Options.ts";
-import {HierarchyNode, HierarchyPointNode, Selection} from "d3";
+import {HierarchyNode, Selection} from "d3";
 import {PedigreeDatasetNode} from "@/models/PedigreeDatasetNode.ts";
 import {PedigreeGeneTestsResults} from "@/models/PedigreeGeneTestsResults.ts";
 
-export function addLabels(opts: Options, node: Selection<SVGGElement, HierarchyPointNode<PedigreeDatasetNode>, SVGElement, PedigreeDatasetNode>) {
+export function addLabels(opts: Options, node: Selection<SVGGElement, HierarchyNode<PedigreeDatasetNode>, SVGElement, PedigreeDatasetNode>) {
 
     let font_size = parseInt(getPx(opts))+2;
 
@@ -196,7 +196,7 @@ function addLabel(
         fontWeight = 800
     }
     node.filter(function (d) {
-        return !d.data.hidden && (!labels || nodeHasLabel(d, labels));
+        return (opts.DEBUG || !d.data.hidden) && (!labels || nodeHasLabel(d, labels));
     }).append("text")
         ///.attr("class", (class_label ? class_label + ' ped_label' : 'ped_label'))
         .attr("x", fx)

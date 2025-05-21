@@ -115,16 +115,13 @@ export function zoomToSelected(options: Options) {
 }
 
 export function zoomTo(svg: Selection<SVGSVGElement, PedigreeDatasetNode, HTMLElement, any>, x: number, y: number, scale?: number) {
-	console.log('translateTo', x, y, zm)
 	svg.call(zm.translateTo, x, y);
 	if (scale) {
-		console.log('scaleTo', scale)
 		svg.call(zm.scaleTo, scale)
 	}
 }
 
 function zooming(e: D3ZoomEvent<SVGSVGElement, PedigreeDatasetNode>, opts: Options) {
-	(opts.DEBUG && console.log("zoom", e.transform));
 	let t = e.transform;
 	let k = (t.k && t.k !== 1 ? t.k : undefined);
 	if (k !== undefined) {
