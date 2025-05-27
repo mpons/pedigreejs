@@ -389,7 +389,7 @@ export function buildTree(
 		const partnersFatherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) <= 0)
 		const partnersMotherSide = partners.filter(({female, male}) => (female?.realProbandDistance || 0) + (male?.realProbandDistance || 0) > 0)
 
-		partners = [...middleBalancedSort(partnersFatherSide), ...middleBalancedSort(partnersMotherSide)]
+		partners = [...middleBalancedSort(partnersFatherSide, false), ...middleBalancedSort(partnersMotherSide, false)]
 	}
 
 	partners
@@ -416,22 +416,21 @@ export function buildTree(
 				ashkenazi: false,
 			};
 
-			let midx = getIdxByName(opts.dataset!, female.name)
-			let fidx = getIdxByName(opts.dataset!, male.name)
 
 			if((!('id' in male) && !('id' in female)) || (male.id === undefined && female.id === undefined)) {
 				id = setChildrenId(referencePerson.children || [], id || 0, opts.displayType);
 			}
 
-			// look at grandparents index
-			let gp = getGrandparentsIdx(opts.dataset!, midx, fidx);
 			//const sign = (father.probandDistance || 1) / Math.abs(father.probandDistance || 1)
-			const parentDistance = ((male.displayProbandDistance || 1) + (male.displayProbandDistance || 1)) / 2
-			if (gp.fidx < gp.midx) {
+			const parentDistance = ((male.displayProbandDistance || 1) + (female.displayProbandDistance || 1)) / 2
+			const maleDisplayDistance = (male.displayProbandDistance || 1)
+			const femaleDisplayDistance = (female.displayProbandDistance || 1)
+			if (maleDisplayDistance <= femaleDisplayDistance) {
 			 	male.id = id++
 			 	parent.id = id++
 			 	female.id = id++
 			} else {
+				console.log('else', male.name, female.name)
 				female.id = id++
 				parent.id = id++
 				male.id = id++
@@ -463,33 +462,38 @@ export function buildTree(
 	return [partnerLinks, id];
 }
 
-function middleBalancedSort(partners: PedigreePartnerLink[]): PedigreePartnerLink[] {
+function middleBalancedSort(partners: PedigreePartnerLink[], ascending: boolean = true): PedigreePartnerLink[] {
 	if (partners.length <= 1) return partners;
-
-	if (partners.length <= 2) {
-		return [...partners].sort((a, b) =>
-		{
-			const aPairDistance = ((a.female?.realProbandDistance || 0) + (a.male?.realProbandDistance || 0)) * (a.female?.subtreeWidth || 0)
-			const bPairDistance = (b.female?.realProbandDistance || 0) + (b.male?.realProbandDistance || 0) * (b.female?.subtreeWidth || 0)
-
-			return aPairDistance - bPairDistance
-		});
-	}
 
 	// Create a copy and sort in ascending order
 	const sorted = [...partners].sort((a, b) =>
 	{
-		const aPairDistance = Math.abs((a.female?.realProbandDistance || 0) + (a.male?.realProbandDistance || 0)) * (a.female?.subtreeWidth || 0)
-		const bPairDistance = Math.abs((b.female?.realProbandDistance || 0) + (b.male?.realProbandDistance || 0)) * (b.female?.subtreeWidth || 0)
+		const aPairDistance = Math.abs((a.female?.displayProbandDistance || 0) + (a.male?.displayProbandDistance || 0))
+		const bPairDistance = Math.abs((b.female?.displayProbandDistance || 0) + (b.male?.displayProbandDistance || 0))
 
-		return aPairDistance - bPairDistance
+		return ascending ? aPairDistance - bPairDistance : bPairDistance - aPairDistance
 	});
+
+	if (partners.length <= 2) {
+		return sorted
+	}
+
 	const result: PedigreePartnerLink[] = [];
 
 	let middle = Math.floor((sorted.length) / 2);
 
-	// Place smallest value in the middle
+	// Place the smallest/highest value in the middle
 	result[middle] = sorted[0];
+
+	if (partners.length === 3) {
+		// We want to force one partner on each side
+		result[middle] = sorted[0];
+		result[0] = sorted[1]
+		result[2] = sorted[2]
+
+		return result
+	}
+
 
 	// Fill remaining positions alternating between left and right sides
 	let currentIndex = 1;
@@ -804,6 +808,10 @@ export function getSiblings(dataset: PedigreeDatasetNode[], referencePerson?: Pe
 // get the siblings + adopted siblings - sex is an optional parameter
 // for only returning brothers or sisters
 export function getAllSiblings(dataset: PedigreeDatasetNode[], referencePerson: PedigreeDatasetNode, sex?: Sex) {
+	if (!referencePerson.mother && !referencePerson.father) {
+		return []
+	}
+
 	return dataset.map((otherPerson) => {
 
 		if (otherPerson.name === referencePerson.name) {
@@ -1170,28 +1178,6 @@ function calculateLineageHeight(dataset: PedigreeDatasetNode[], person: Pedigree
 	// Use a set to track visited nodes and prevent infinite loops
 	const visitedNodes = new Set<string>();
 
-	// Calculate ancestors height (generations above)
-	function getAncestorsHeight(node: PedigreeDatasetNode): number {
-		if (visitedNodes.has(node.name) || node.noparents || !node.mother || !node.father) {
-			return 0;
-		}
-
-		visitedNodes.add(node.name);
-
-		const mother = getPedigreeNodeByName(dataset, getName(node.mother));
-		const father = getPedigreeNodeByName(dataset, getName(node.father));
-
-		if (!mother && !father) {
-			return 0;
-		}
-
-		// Get the maximum height from either parent's line
-		const motherHeight = mother ? 1 + getAncestorsHeight(mother) : 0;
-		const fatherHeight = father ? 1 + getAncestorsHeight(father) : 0;
-
-		return Math.max(motherHeight, fatherHeight);
-	}
-
 	// Calculate descendants height (generations below)
 	function getDescendantsHeight(node: PedigreeDatasetNode): number {
 		if (visitedNodes.has(node.name)) {
@@ -1217,15 +1203,10 @@ function calculateLineageHeight(dataset: PedigreeDatasetNode[], person: Pedigree
 		return maxChildHeight;
 	}
 
-	// Reset visited set for each calculation
-	visitedNodes.clear();
-	const ancestorsHeight = getAncestorsHeight(person);
-
 	visitedNodes.clear();
 	const descendantsHeight = getDescendantsHeight(person);
 
-	// Total lineage height is ancestors + descendants + 1 (the node itself)
-	return ancestorsHeight + descendantsHeight + 1;
+	return  descendantsHeight + 1;
 }
 
 // given an array of people get an index for a given person
@@ -1498,25 +1479,6 @@ export function urlParam(name: string){
 	   return results[1] || 0;
 }
 
-// get grandparents index
-function getGrandparentsIdx(dataset: PedigreeDatasetNode[], midx: number, fidx: number) {
-	let grandMotherIdx = midx;
-	let grandFatherIdx = fidx;
-	while('mother' in dataset[grandMotherIdx] && 'mother' in dataset[grandFatherIdx] &&
-		!('noparents' in dataset[grandMotherIdx]) && !('noparents' in dataset[grandFatherIdx])
-		){
-		const grandMaMotherName = getName(dataset[grandMotherIdx].mother!)
-		const grandPaMotherName = getName(dataset[grandFatherIdx].mother!)
-
-		if (grandMaMotherName === undefined || grandPaMotherName === undefined) {
-			continue
-		}
-		grandMotherIdx = getIdxByName(dataset, grandMaMotherName);
-		grandFatherIdx = getIdxByName(dataset, grandPaMotherName);
-	}
-	return {'midx': grandMotherIdx, 'fidx': grandFatherIdx};
-}
-
 export function getName(person?: PedigreeDatasetNode|string): string {
 	if (person === undefined) {
 		return ''
@@ -1771,92 +1733,4 @@ export function getNodeWidthMultiplier(
 	}
 
 	return widthMultiplier;
-}
-
-export function getNodeHeightMultiplier(
-	opts: Options,
-	node: HierarchyNode<PedigreeDatasetNode>
-): number {
-	// Parse the font size to get numeric value
-	const fontSize = parseInt(getPx(opts));
-	const lineHeight = fontSize * 1.2; // Typical line height
-
-	// Base height (for the symbol itself)
-	let heightMultiplier = 1.0;
-	let lineCount = 0;
-
-	// Count potential label lines
-
-	// Display name (always first)
-	if (node.data.display_name) {
-		lineCount++;
-	}
-
-	// Age/YOB
-	if ((node.data.age || node.data.yob) &&
-		opts.labels && opts.labels.some(l => Array.isArray(l) ?
-			l.includes('age') || l.includes('yob') :
-			l === 'age' || l === 'yob')) {
-		lineCount++;
-	}
-
-	// Gene test results
-	const geneTests = [
-		'brca1_gene_test', 'brca2_gene_test', 'palb2_gene_test', 'atm_gene_test',
-		'chek2_gene_test', 'bard1_gene_test', 'rad51d_gene_test', 'rad51c_gene_test',
-		'brip1_gene_test'
-	];
-
-	for (const test of geneTests) {
-		if (node.data[test] && node.data[test].result && node.data[test].result !== '-') {
-			lineCount++;
-		}
-	}
-
-	// Cancer diagnoses
-	for (const disease of opts.diseases || []) {
-		const key = `${disease.type}_diagnosis_age`;
-		if (node.data[key]) {
-			lineCount++;
-		}
-	}
-
-	// BC pathology
-	const pathologyTypes = ['er_bc_pathology', 'pr_bc_pathology', 'her2_bc_pathology', 'ck14_bc_pathology', 'ck56_bc_pathology'];
-	for (const pathology of pathologyTypes) {
-		if (node.data[pathology]) {
-			lineCount++;
-		}
-	}
-
-	// Other labels defined in opts.labels
-	if (opts.labels) {
-		for (const label of opts.labels.flat()) {
-			if (node.data[label] &&
-				!['age', 'yob'].includes(label) &&
-				!label.endsWith('_gene_test') &&
-				!label.endsWith('_diagnosis_age') &&
-				!label.endsWith('_bc_pathology') &&
-				label !== 'notes') {
-				lineCount++;
-			}
-		}
-	}
-
-	// Notes (can span multiple lines)
-	if (node.data.notes) {
-		const words = node.data.notes.split(' ');
-		const wordsPerLine = 4;
-		const noteLineCount = Math.ceil(words.length / wordsPerLine);
-		lineCount += noteLineCount;
-	}
-
-	// Calculate total height multiplier
-	if (lineCount > 0) {
-		// Add space for each line plus a small margin
-		// The 1.5 factor accounts for the space needed below the symbol for the first line
-		heightMultiplier += (lineCount * lineHeight) / opts.symbol_size * 0.5;
-	}
-
-	return heightMultiplier;
 }

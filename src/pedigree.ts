@@ -115,15 +115,17 @@ export function build(options: Options) {
         .attr("width", svg_dimensions.width)
         .attr("height", svg_dimensions.height);
 
-    // Draws the rectangular "frame" for our tree
-    svg.append("rect")
-        .attr("width", "100%")
-        .attr("height", "100%")
-        .attr("rx", 6)
-        .attr("ry", 6)
-        .style("stroke", "darkgrey")
-        .style("fill", opts.background) // or none
-        .style("stroke-width", 1);
+    if (options.hasBorder) {
+        // Draws the rectangular "frame" for our tree
+        svg.append("rect")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("rx", 6)
+            .attr("ry", 6)
+            .style("stroke", "darkgrey")
+            .style("fill", opts.background) // or none
+            .style("stroke-width", 1);
+    }
 
     // Prepare the conceptual group element to hold the tree
     let ped = svg.append("g")

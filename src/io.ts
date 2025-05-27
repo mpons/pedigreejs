@@ -10,7 +10,7 @@ import * as pedcache from './pedcache.js';
 import {readCanRisk, cancers, genetic_test1, pathology_tests} from './canrisk_file.js';
 import {get_bounds} from './zoom.js';
 import {PedigreeDatasetNode} from "@/models/PedigreeDatasetNode.ts";
-import {makeid} from "./utils.js";
+import {getAllChildren, makeid} from "./utils.js";
 
 
 export function addIO(opts) {
@@ -557,13 +557,22 @@ export function readBoadiceaV4(boadicea_lines, version) {
 
 export function process_ped(ped) {
     // find the level of individuals in the pedigree
+    let deepestLevel = 0
+    let currentLevel = 0
     for (let j = 0; j < 2; j++) {
         for (let i = 0; i < ped.length; i++) {
-            getLevel(ped, ped[i].name);
+            currentLevel = getDeepestLevel(ped, ped[i]);
+            if (currentLevel < deepestLevel) {
+                deepestLevel = currentLevel
+            }
         }
     }
-
-    fix_n_balance_levels(ped);
+    const visited = []
+    for (let j = 0; j < 2; j++) {
+        for (let i = 0; i < ped.length; i++) {
+            setLevelsFromBottom(ped, ped[i], deepestLevel + 1, 0, visited);
+        }
+    }
 
     // find the max level (i.e. top_level)
     let max_level = 0;
@@ -667,40 +676,87 @@ function getPartnerIdx(dataset, anode) {
     return -1;
 }
 
-// for a given individual assign levels to a parents ancestors
-function getLevel(dataset, name) {
-    let idx = utils.getIdxByName(dataset, name);
-    let level = (dataset[idx].level ? dataset[idx].level : 0);
-    update_parents_level(idx, level, dataset);
+function getDeepestLevel(dataset: PedigreeDatasetNode[], person: PedigreeDatasetNode, previousLevel = 0): number {
+    const children = getAllChildren(dataset, person)
+    let level = previousLevel - 1
+    let deepestLevel = level
+    for (const child of children) {
+        const childLevel = getDeepestLevel(dataset, child, level)
+        if (childLevel < deepestLevel) {
+            deepestLevel = childLevel
+        }
+    }
+
+    return deepestLevel
 }
 
-// recursively update parents levels
-function update_parents_level(personIndex, level, dataset) {
-    let parents = ['mother', 'father'];
-    level++;
-    for (let i = 0; i < parents.length; i++) {
-        let parentIndex = utils.getIdxByName(dataset, dataset[personIndex][parents[i]]);
-        if (parentIndex >= 0) {
-            // Parent found
-            //console.log('parent found for', dataset[personIndex].name)
-            let ma = dataset[utils.getIdxByName(dataset, dataset[personIndex].mother)];
-            let pa = dataset[utils.getIdxByName(dataset, dataset[personIndex].father)];
-
-            if (!dataset[parentIndex].level || dataset[parentIndex].level < level) {
-                ma.level = level;
-                pa.level = level;
-            }
-
-            if (ma.level < pa.level) {
-                ma.level = pa.level;
-            } else if (pa.level < ma.level) {
-                pa.level = ma.level;
-            }
-            update_parents_level(parentIndex, level, dataset);
+function setLevelsFromBottom(dataset: PedigreeDatasetNode[], person: PedigreeDatasetNode, deepestLevel: number, previousLevel = 0, visited: string[]): void {
+    const children = getAllChildren(dataset, person)
+    let level = previousLevel - 1
+    for (const child of children) {
+        if (level === deepestLevel && !visited.includes(child.name)) {
+            child.level = 0
+            setLevelsUpRecursively(dataset, child, visited)
+        } else {
+            setLevelsFromBottom(dataset, child, deepestLevel, level, visited)
         }
     }
 }
 
+function setLevelsUpRecursively(dataset: PedigreeDatasetNode[], person: PedigreeDatasetNode, visited: string[]): void {
+    if (visited.includes(person.name)) {
+        return;
+    }
+    visited.push(person.name)
+
+    const siblings = utils.getAllSiblings(dataset, person)
+    const partners = utils.getPartners(dataset, person)
+
+    for (const partner of partners) {
+        if (!partner.level) {
+            partner.level = person.level
+        }
+        setLevelsUpRecursively(dataset, partner, visited);
+    }
+
+    for (const sibling of siblings) {
+        if (!sibling) {
+            continue
+        }
+        if (!sibling.level) {
+            sibling.level = person.level
+        }
+        setLevelsUpRecursively(dataset, sibling, visited);
+    }
+
+    const motherIndex = utils.getIdxByName(dataset, person.mother)
+    const fatherIndex = utils.getIdxByName(dataset, person.father)
+    const hasParents = motherIndex >= 0;
+    if (hasParents) {
+        // Parent found
+        let mother = dataset[motherIndex];
+        let father = dataset[fatherIndex];
+
+        mother.level = person.level + 1
+        setLevelsUpRecursively(dataset, mother, visited);
+
+        father.level = person.level + 1
+        setLevelsUpRecursively(dataset, father, visited);
+    }
+
+    // const children = utils.getAllChildren(dataset, person)
+    // console.log('-- Children', person.name)
+    // for (const child of children) {
+    //     if (!child) {
+    //         continue
+    //     }
+    //     if (!child.level) {
+    //         child.level = person.level
+    //         console.log(`set levels child`, child.display_name, child.name, person.level)
+    //     }
+    //     setLevelsUpRecursively(dataset, child, visited);
+    // }
+}
 
 // for a pedigree fix the levels of children nodes to be consistent with parent
 function fix_n_balance_levels(ped) {

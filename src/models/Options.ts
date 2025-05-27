@@ -16,6 +16,7 @@ export interface Options {
     font_family: string
     font_weight: number
     background: string
+    hasBorder?: boolean
     node_background: string
     displayType: DisplayType
     store_type: 'array' | 'local' | 'storage' | 'session'
